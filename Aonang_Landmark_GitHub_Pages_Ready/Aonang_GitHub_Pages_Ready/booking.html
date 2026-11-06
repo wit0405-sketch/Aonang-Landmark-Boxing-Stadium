@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Book tickets for Muay Thai fight nights or reserve a training session at Aonang Landmark Boxing Stadium in Ao Nang, Krabi, Thailand.">
+<title>Book Muay Thai Fight Night Tickets | Aonang Landmark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="theme-color" content="#080909">
+<link rel="canonical" href="https://aonan.edgeone.dev/booking.html">
+<link rel="icon" href="https://aonan.edgeone.dev/logo.jpg" type="image/jpeg">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Aonang Landmark Boxing Stadium">
+<meta property="og:title" content="Book Muay Thai Fight Night Tickets | Aonang Landmark">
+<meta property="og:description" content="Book a Muay Thai fight night or training session in Ao Nang, Krabi, Thailand.">
+<meta property="og:url" content="https://aonan.edgeone.dev/booking.html">
+<meta property="og:image" content="https://aonan.edgeone.dev/BG.jpg">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Book Muay Thai Fight Night Tickets | Aonang Landmark">
+<meta name="twitter:description" content="Reserve your fight night tickets or Muay Thai training session in Ao Nang, Krabi.">
+<meta name="twitter:image" content="https://aonan.edgeone.dev/BG.jpg">
+</head>
+<body id="top" class="booking-page">
+<header class="site-header">
+  <a class="brand" href="index.html#home" aria-label="Aonang Landmark Boxing Stadium home"><img class="brand-logo" src="logo.jpg" alt="Aonang Landmark Boxing Stadium"></a>
+  <button class="menu-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
+  <nav class="main-nav" aria-label="Main navigation">
+    <a class="nav-link" href="index.html#home">HOME</a><a class="nav-link" href="index.html#live">LIVE</a><a class="nav-link" href="index.html#schedule">FIGHT SCHEDULE</a><a class="nav-link" href="index.html#training">TRAINING</a><a class="nav-link" href="index.html#gallery">GALLERY</a><a class="nav-link" href="index.html#contact">CONTACT</a><a class="nav-link nav-booking" href="tickets.html">TICKETS</a><button class="language-btn" id="languageBtn" type="button" aria-label="เปลี่ยนภาษาเป็นภาษาอังกฤษ">🇬🇧 EN</button>
+  </nav>
+</header>
+<main>
+  <section class="booking-hero">
+    <div class="booking-hero-content"><p class="eyebrow">YOUR FIGHT NIGHT STARTS HERE</p><h1>BOOK YOUR <em>EXPERIENCE</em></h1><p>เลือกชมการแข่งขันมวยไทย หรือจองคลาสฝึกซ้อมที่อ่าวนาง</p><div class="booking-meta"><span>◷ 20:00 น. เป็นต้นไป</span><span>⌖ อ่าวนาง · กระบี่</span></div></div>
+  </section>
+  <section class="booking-layout container">
+    <div class="booking-main">
+      <div class="booking-step"><span>01</span><div><p class="eyebrow">CHOOSE YOUR EXPERIENCE</p><h2>เลือกประสบการณ์</h2></div></div>
+      <div class="booking-type-switch" role="group" aria-label="ประเภทการจอง"><button type="button" class="booking-type active" data-kind="fight">🥊 &nbsp; ชมมวยไทย</button><button type="button" class="booking-type" data-kind="training">⚡ &nbsp; คลาสฝึกมวยไทย</button></div>
+      <form id="bookingForm">
+        <div class="booking-fieldset" id="fightFields">
+          <label for="fightDate">วันที่เข้าชม <span>เลือกวันที่ต้องการ</span></label>
+          <select id="fightDate" name="fightDate" required><option value="2026-11-01">อาทิตย์ 1 พฤศจิกายน 2026 · Fight Night</option><option value="2026-11-02">จันทร์ 2 พฤศจิกายน 2026 · Muay Thai Super Fight</option><option value="2026-11-03">อังคาร 3 พฤศจิกายน 2026 · Local Fight Night</option><option value="2026-11-04">พุธ 4 พฤศจิกายน 2026 · Fight Night</option></select>
+          <label id="seatMapLabel">เลือกที่นั่ง <span>เลือกได้สูงสุด 10 ที่นั่ง</span></label>
+          <p class="seat-map-note">เลือกหมายเลขที่นั่งบนผังสนามตามโซนจริง · เลือกได้สูงสุด 10 ที่นั่ง</p>
+          <div class="seat-zone-filters" role="group" aria-label="เลือกโซนที่นั่ง">
+            <button type="button" class="seat-zone-filter active" data-seat-filter="all" aria-pressed="true">ทั้งหมด</button>
+            <button type="button" class="seat-zone-filter" data-seat-filter="ringside" aria-pressed="false">Ringside</button>
+            <button type="button" class="seat-zone-filter" data-seat-filter="vip" aria-pressed="false">VIP SEAT</button>
+            <button type="button" class="seat-zone-filter" data-seat-filter="grand" aria-pressed="false">Grandstand</button>
+          </div>
+          <div class="seat-legend" aria-label="Seat categories"><span><i class="seat-dot ring"></i>Ringside S1–S66 · ฿1,500</span><span><i class="seat-dot vip"></i>VIP A1–H18 · ฿1,200</span><span><i class="seat-dot grand"></i>Grandstand G1–G80 · ฿1,000</span><span><i class="seat-dot chosen"></i>เลือกแล้ว / Selected</span></div>
+          <div class="seat-map-scroll" aria-label="ผังที่นั่ง เลื่อนซ้ายขวาได้"><div class="seat-map" id="seatMap" aria-labelledby="seatMapLabel"></div></div>
+          <section class="seat-selection-lists" aria-label="เลือกรายการที่นั่ง">
+            <div class="seat-choice-panel" data-choice-zone="ringside" hidden>
+              <label>รายการที่นั่ง Ringside S1–S66</label>
+              <div class="seat-choice-row" id="selectedRingside" role="group" aria-label="เลือกที่นั่ง Ringside"></div>
+            </div>
+            <div class="seat-choice-panel" data-choice-zone="vip" hidden>
+              <label>รายการที่นั่ง VIP SEAT A1–H18</label>
+              <div class="seat-choice-row" id="selectedVip" role="group" aria-label="เลือกที่นั่ง VIP SEAT"></div>
+            </div>
+            <div class="seat-choice-panel" data-choice-zone="grand" hidden>
+              <label>รายการที่นั่ง Grandstand G1–G80</label>
+              <div class="seat-choice-row" id="selectedGrandstand" role="group" aria-label="เลือกที่นั่ง Grandstand"></div>
+            </div>
+            <p class="seat-select-hint">เลือกหมายเลขในแนวนอนได้หลายที่นั่ง · สูงสุด 10 ที่นั่งรวมทุกโซน</p>
+          </section>
+          <p class="seat-limit-message" id="seatLimitMessage" aria-live="polite"></p>
+          <p class="seat-lock-status" id="seatLockStatus" role="status" aria-live="polite" hidden></p>
+        </div>
+        <div class="booking-fieldset training-fields hidden" id="trainingFields">
+          <label for="trainingLevel">คลาสฝึกซ้อม <span>ราคาตัวอย่าง</span></label>
+          <select id="trainingLevel" name="trainingLevel"><option value="beginner" data-price="1200">Beginner · คลาสกลุ่ม 1 ชั่วโมง — ฿1,200 / คน</option><option value="intermediate" data-price="1500">Intermediate · คลาสกลุ่ม 1 ชั่วโมง — ฿1,500 / คน</option><option value="private" data-price="2500">Private Training · 1 ชั่วโมง — ฿2,500 / คน</option></select>
+          <label for="trainingDate">วันที่สะดวก</label><input id="trainingDate" name="trainingDate" type="date" min="2026-11-01">
+          <label for="trainingTime">ช่วงเวลาที่ต้องการ</label><select id="trainingTime" name="trainingTime"><option>09:00 – 10:00</option><option>11:00 – 12:00</option><option>15:00 – 16:00</option><option>17:00 – 18:00</option></select>
+          <label for="traineeCount">จำนวนผู้เข้าฝึก</label><div class="quantity-control"><button type="button" id="traineeMinus" aria-label="ลดจำนวน">−</button><input id="traineeCount" type="number" min="1" max="8" value="1"><button type="button" id="traineePlus" aria-label="เพิ่มจำนวน">+</button><span>สูงสุด 8 คน</span></div>
+        </div>
+        <div class="booking-step attendee-step"><span>02</span><div><p class="eyebrow">GUEST DETAILS</p><h2>ข้อมูลผู้จอง</h2></div></div>
+        <div class="guest-fields"><div><label for="guestName">ชื่อผู้จอง</label><input id="guestName" name="guestName" autocomplete="name" placeholder="ชื่อ - นามสกุล" required></div><div><label for="guestEmail">อีเมล</label><input id="guestEmail" name="guestEmail" type="email" autocomplete="email" placeholder="name@example.com" required></div><div><label for="guestPhone">เบอร์โทรศัพท์/WhatAPP</label><input id="guestPhone" name="guestPhone" type="tel" autocomplete="tel" placeholder="+66" required></div><div><label for="guestCountry">ประเทศ</label><select id="guestCountry" name="guestCountry"><option>Thailand</option><option>United Kingdom</option><option>United States</option><option>Australia</option><option>Other</option></select></div></div>
+        <label class="booking-consent"><input type="checkbox" required><span>ฉันยอมรับเงื่อนไขการจองและนโยบายความเป็นส่วนตัว</span></label>
+        <button class="btn btn-red booking-submit" type="submit">ส่งคำขอจอง <span>↗</span></button>
+        <p class="booking-disclaimer">การเลือกที่นั่งและส่งแบบฟอร์มนี้เป็นเพียงการสาธิต ไม่ใช่การจองที่นั่งจริง ไม่มีการกันที่นั่งหรือรับชำระเงิน กรุณาติดต่อสนามเพื่อยืนยันการจอง</p>
+        
+      </form>
+      <div id="bookingSuccessPopup" class="booking-success-popup" role="dialog" aria-modal="true" aria-labelledby="bookingSuccessText" tabindex="-1" hidden>
+        <div class="booking-success-card">
+          <div class="booking-success-mark" aria-hidden="true">✓</div>
+          <p id="bookingSuccessText">คำขอของคุณได้บันทึกไว้แล้ว เราจะติดต่อคุณในเร็วๆนี้</p>
+        </div>
+      </div>
+    </div>
+    <aside class="booking-summary"><p class="eyebrow">YOUR SELECTION</p><h2>สรุปรายการ</h2><div class="summary-event"><div class="summary-thumb"></div><div><b id="summaryName">FIGHT NIGHT</b><small id="summaryDate">1 NOV 2026 · 20:00</small></div></div><div class="summary-line"><span id="summaryItem">ยังไม่ได้เลือกที่นั่ง</span><b id="summarySubtotal">฿0</b></div><div class="summary-line"><span>ค่าธรรมเนียม</span><b>฿0</b></div><div class="summary-total"><span>ยอดรวมโดยประมาณ</span><strong id="summaryTotal">฿0</strong></div><p class="summary-caption">ยอดรวมตัวอย่าง · ยังไม่ใช่ราคายืนยัน</p><div class="summary-perks"><p><span>✓</span> เลือกที่นั่งได้หลายที่</p><p><span>✓</span> ดูราคาและยอดรวมทันที</p><p><span>✓</span> สลับจองที่นั่งหรือคลาสฝึกซ้อม</p></div><a href="index.html#contact" class="summary-help">ต้องการความช่วยเหลือ? <b>ติดต่อเรา ↗</b></a></aside>
+  </section>
+</main>
+<footer class="site-footer"><a class="footer-brand" href="index.html#home">AONANG LANDMARK <span>BOXING STADIUM</span></a><p>MUAY THAI · FIGHT NIGHT · KRABI</p><small>© <span id="year"></span> Aonang Landmark Boxing Stadium. All rights reserved.</small><a class="dashboard-link" href="CODEX/dashboard.html">ADMIN DASHBOARD</a><a href="#top" class="back-top">BACK TO TOP ↑</a></footer>
+<script src="script.js"></script><script src="language.js"></script><script src="site-data.js"></script><script src="booking.js"></script>
+</body>
+</html>
+
+
+
+
+
