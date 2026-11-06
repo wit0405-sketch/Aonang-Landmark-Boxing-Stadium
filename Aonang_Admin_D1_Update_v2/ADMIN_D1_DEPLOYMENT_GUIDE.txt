@@ -1,0 +1,20 @@
+AONANG ADMIN + D1 UPDATE — v2
+================================
+
+นำไฟล์ใน ZIP นี้ไปวางทับ/เพิ่มในโฟลเดอร์รากของเว็บไซต์บน GitHub โดยคงโครงสร้างโฟลเดอร์ไว้ (admin/, functions/api/, migrations/).
+
+ขั้นตอน Cloudflare Pages
+1. ตรวจว่า Root directory ชี้ไปยังโฟลเดอร์ที่มี index.html และ functions/ อยู่ระดับเดียวกัน
+2. Framework preset: None; Build command: เว้นว่าง; Build output directory: .
+3. Settings > Functions > D1 database bindings: Binding name SEAT_LOCKS_DB เลือกฐาน aonang-seat-locks
+4. Settings > Functions > KV namespace bindings: Binding name fights_kv เลือก namespace aonang-fights-kv
+5. Settings > Variables and secrets: เพิ่ม Secret FIGHTS_ADMIN_TOKEN (ค่าสุ่มยาว ไม่ใส่ใน GitHub)
+6. D1 Console: ตรวจว่ามี _cf_KV, admin_bookings, fight_schedule, seat_locks, website_config ครบแล้ว; ถ้าขาดตารางให้รัน migrations/0002_admin_data_d1.sql
+7. Commit ไฟล์ใน GitHub แล้วรอ Cloudflare Pages deploy สำเร็จ
+8. เปิด https://aonang-landmark-boxing-stadium.pages.dev/api/health เพื่อตรวจ D1/KV; expected ok=true และตารางครบ
+9. เปิด https://aonang-landmark-boxing-stadium.pages.dev/admin/ ลงชื่อเข้าใช้ จากนั้นกรอก FIGHTS_ADMIN_TOKEN ในช่องเชื่อมต่อ Cloudflare admin token แล้วกด Connect
+
+หมายเหตุความปลอดภัย
+- ห้ามใส่ FIGHTS_ADMIN_TOKEN ในไฟล์ JS/HTML หรือ commit ลง GitHub
+- ระบบล็อกอินเดิมในเบราว์เซอร์เป็นเพียง UI gate ไม่ใช่ server-side authentication; ควรป้องกัน /admin/* และ /login.html ด้วย Cloudflare Access
+- ระบบยังไม่เชื่อม Payment Gateway; สถานะ pending_payment ไม่ใช่หลักฐานการชำระเงินหรือการยืนยันตั๋ว
