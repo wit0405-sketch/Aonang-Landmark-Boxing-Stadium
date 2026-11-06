@@ -41,6 +41,19 @@ export async function onRequestGet({request,env}){
 }
 export async function onRequestPost({request,env}){
  let p;try{p=await request.json()}catch{return json({error:'Invalid booking request.'},400)}
+ // Admin status changes use POST for reliable Cloudflare Pages Functions routing.
+ if(p?.action==='admin_update'){
+  if(!authorized(request,env))return json({error:'Admin authorization required.'},401);
+  if(typeof p.id!=='string'||!['new','reviewed'].includes(p.status))return json({error:'Invalid booking update.'},400);
+  try{
+   const database=db(env);if(!database)throw new Error('D1 binding missing');
+   const row=await database.prepare('SELECT payload FROM admin_bookings WHERE id=?').bind(p.id).first();
+   if(!row)return json({error:'Booking not found.'},404);
+   const booking={...JSON.parse(row.payload),status:p.status};
+   await database.prepare('UPDATE admin_bookings SET status=?,payload=? WHERE id=?').bind(p.status,JSON.stringify(booking),p.id).run();
+   return json({ok:true,booking});
+  }catch(error){return json({error:'Could not update booking in D1.',detail:String(error?.message||error).slice(0,240)},503)}
+ }
  if(!validBooking(p))return json({error:'Booking details are incomplete or invalid.'},400);
  try{
   const database=db(env);if(!database)throw new Error('D1 missing');
