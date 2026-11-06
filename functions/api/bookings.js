@@ -2,7 +2,7 @@ const KEY = 'website_bookings';
 const HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: HEADERS });
 function authorized(request, env) { const expected = env?.FIGHTS_ADMIN_TOKEN; return Boolean(expected && request.headers.get('Authorization') === `Bearer ${expected}`); }
-async function readBookings() { const raw = await fights_kv.get(KEY); if (!raw) return []; try { const value = JSON.parse(raw); return Array.isArray(value) ? value : []; } catch { return []; } }
+async function readBookings(env) { const kv = env?.fights_kv; if (!kv) throw new Error('KV binding fights_kv is not configured.'); const raw = await kv.get(KEY); if (!raw) return []; try { const value = JSON.parse(raw); return Array.isArray(value) ? value : []; } catch { return []; } }
 function validBooking(b) {
   const validSeats = b?.seats === undefined || (Array.isArray(b.seats) && b.seats.length <= 10 && b.seats.every(seat => {
     if (!seat || typeof seat.id !== 'string' || typeof seat.tier !== 'string' || !Number.isInteger(seat.price)) return false;
@@ -23,7 +23,7 @@ function validBooking(b) {
 }
 export async function onRequestGet({ request, env }) {
   if (!authorized(request, env)) return json({ error: 'Admin authorization required.' }, 401);
-  try { return json({ bookings: await readBookings() }); }
+  try { return json({ bookings: await readBookings(env) }); }
   catch { return json({ error: 'Booking storage is not configured.' }, 503); }
 }
 export async function onRequestPost({ request, env }) {
@@ -41,10 +41,10 @@ export async function onRequestPost({ request, env }) {
       ).bind(payload.date, payload.lockToken, now, ...payload.seats.map(seat => seat.id)).all();
       if ((held.results || []).length !== payload.seats.length) return json({ error: 'The seat lock expired or is incomplete.' }, 409);
     }
-    const bookings = await readBookings();
+    const bookings = await readBookings(env);
     const booking = { id: crypto.randomUUID(), name: payload.name.trim(), email: payload.email.trim(), phone: payload.phone.trim(), kind: payload.kind, selection: payload.selection.trim(), date: payload.date, count: String(payload.count), ...(Array.isArray(payload.seats) ? { seats: payload.seats, total: payload.total, demo: true, lockToken: payload.lockToken || null } : {}), created: new Date().toISOString(), status: Array.isArray(payload.seats) && payload.seats.length ? 'pending_payment' : 'new' };
     bookings.unshift(booking);
-    await fights_kv.put(KEY, JSON.stringify(bookings.slice(0, 1000)));
+    await env.fights_kv.put(KEY, JSON.stringify(bookings.slice(0, 1000)));
     return json({ ok: true, booking }, 201);
   } catch { return json({ error: 'Could not save the booking request.' }, 503); }
 }
@@ -54,10 +54,10 @@ export async function onRequestPut({ request, env }) {
   try { payload = await request.json(); } catch { return json({ error: 'Invalid migration payload.' }, 400); }
   if (!Array.isArray(payload?.bookings) || payload.bookings.length > 1000 || payload.bookings.some(b => !validBooking(b) || typeof b.id !== 'string')) return json({ error: 'Booking migration data is invalid.' }, 400);
   try {
-    const current = await readBookings();
+    const current = await readBookings(env);
     const ids = new Set(current.map(b => b.id));
     for (const booking of payload.bookings) if (!ids.has(booking.id)) { current.push({ ...booking, status: ['new','reviewed'].includes(booking.status) ? booking.status : 'new' }); ids.add(booking.id); }
-    await fights_kv.put(KEY, JSON.stringify(current.slice(-1000)));
+    await env.fights_kv.put(KEY, JSON.stringify(current.slice(-1000)));
     return json({ ok: true, count: current.length });
   } catch { return json({ error: 'Could not migrate booking requests.' }, 503); }
 }
@@ -67,11 +67,11 @@ export async function onRequestPatch({ request, env }) {
   try { payload = await request.json(); } catch { return json({ error: 'Invalid update.' }, 400); }
   if (typeof payload?.id !== 'string' || !['new','reviewed'].includes(payload.status)) return json({ error: 'Invalid booking update.' }, 400);
   try {
-    const bookings = await readBookings();
+    const bookings = await readBookings(env);
     const index = bookings.findIndex(b => b.id === payload.id);
     if (index < 0) return json({ error: 'Booking not found.' }, 404);
     bookings[index] = { ...bookings[index], status: payload.status };
-    await fights_kv.put(KEY, JSON.stringify(bookings));
+    await env.fights_kv.put(KEY, JSON.stringify(bookings));
     return json({ ok: true });
   } catch { return json({ error: 'Could not update the booking.' }, 503); }
 }
@@ -80,8 +80,8 @@ export async function onRequestDelete({ request, env }) {
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return json({ error: 'Booking ID is required.' }, 400);
   try {
-    const bookings = (await readBookings()).filter(b => b.id !== id);
-    await fights_kv.put(KEY, JSON.stringify(bookings));
+    const bookings = (await readBookings(env)).filter(b => b.id !== id);
+    await env.fights_kv.put(KEY, JSON.stringify(bookings));
     return json({ ok: true });
   } catch { return json({ error: 'Could not delete the booking.' }, 503); }
 }
