@@ -18,6 +18,12 @@
     if(!response.ok)throw new Error(data.error||'Could not load shared booking requests.');
     window.dispatchEvent(new CustomEvent('shared-bookings-loaded',{detail:{bookings:Array.isArray(data.bookings)?data.bookings:[]}}));
   }
+  async function importLegacyKvBookings(value){
+    const response=await fetch('/api/admin-booking-import',{method:'POST',cache:'no-store',headers:{...authHeaders(value),'Content-Type':'application/json'},body:JSON.stringify({source:'website_bookings'})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Could not import existing shared bookings from KV.');
+    return data;
+  }
   async function migrateBookings(value){
     let old=[];try{old=JSON.parse(localStorage.getItem('aonang-bookings')||'[]')}catch{}
     if(Array.isArray(old)&&old.length){
@@ -46,6 +52,7 @@
       localSchedulePending=false;
       localStorage.setItem('aonang-fights',JSON.stringify(schedule));
       window.dispatchEvent(new CustomEvent('shared-fights-loaded',{detail:{fights:schedule}}));
+      await importLegacyKvBookings(value);
       await migrateBookings(value);
       await loadBookings(value);
       await syncYoutube(value);
