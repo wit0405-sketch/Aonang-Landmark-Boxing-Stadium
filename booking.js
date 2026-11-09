@@ -331,14 +331,30 @@ document.getElementById('bookingForm').addEventListener('submit', async event =>
     const requests=JSON.parse(localStorage.getItem('aonang-bookings')||'[]');
     requests.unshift(booking);localStorage.setItem('aonang-bookings',JSON.stringify(requests.slice(0,1000)));
   } catch(_) {}
-  const confirmation=shared
-    ? (isEnglish()?'Your seats are temporarily held for 15 minutes. Payment is not connected yet; contact the stadium to complete payment.':'ล็อกที่นั่งชั่วคราวให้แล้ว 15 นาที ขณะนี้ยังไม่ได้เชื่อมต่อระบบชำระเงิน กรุณาติดต่อสนามเพื่อดำเนินการชำระเงิน')
-    : (isEnglish()?'The booking service is unavailable. No seats were held. Please try again later.':'ระบบจองยังไม่พร้อมใช้งาน ไม่มีการล็อกที่นั่ง กรุณาลองใหม่ภายหลัง');
-  if(shared && lockResult) startLockCountdown(lockResult.expiresAt);
-  document.getElementById('bookingSuccessText').textContent=confirmation;
+  if(shared && !isTraining) {
+    try {
+      const paymentResponse=await fetch('/api/payments/create',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({bookingId:booking.id})});
+      const payment=await paymentResponse.json().catch(()=>({}));
+      if(!paymentResponse.ok || !payment.qrUrl) throw new Error(payment.error||'Payment setup is not ready.');
+      location.href='payment.html?booking='+encodeURIComponent(booking.id);
+      return;
+    } catch(error) {
+      if(activeLockToken) {
+        fetch('/api/seat-locks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'release',date:currentFightDate(),lockToken:activeLockToken})}).catch(()=>{});
+        activeLockToken=null;
+      }
+      document.getElementById('bookingSuccessText').textContent=isEnglish()
+        ? 'Your booking was saved, but online payment could not start. Please contact the stadium before paying again. '+error.message
+        : 'บันทึกคำขอจองแล้ว แต่ยังเริ่มชำระเงินออนไลน์ไม่ได้ กรุณาติดต่อสนามก่อนชำระเงินอีกครั้ง '+error.message;
+    }
+  } else {
+    document.getElementById('bookingSuccessText').textContent=shared
+      ? (isEnglish()?'Your training request has been received. The stadium team will contact you to confirm.':'ได้รับคำขอจองคลาสฝึกซ้อมแล้ว ทีมงานจะติดต่อกลับเพื่อยืนยัน')
+      : (isEnglish()?'The booking service is unavailable. Please try again later.':'ระบบจองยังไม่พร้อมใช้งาน กรุณาลองใหม่ภายหลัง');
+  }
   if(bookingPopupTimer) clearTimeout(bookingPopupTimer);
   bookingSuccessPopup.hidden=false;bookingSuccessPopup.focus();
-  bookingPopupTimer=setTimeout(()=>{bookingSuccessPopup.hidden=true;document.querySelector('.booking-submit')?.focus()},5000);
+  bookingPopupTimer=setTimeout(()=>{bookingSuccessPopup.hidden=true;document.querySelector('.booking-submit')?.focus()},7000);
   if(submitButton) submitButton.disabled=false;
 });
 document.addEventListener('site-language-change',()=>{renderSeatMap();updateSummary()});
