@@ -163,3 +163,45 @@ test("keeps notes isolated between different Booking IDs", async () => {
   assert.equal(result.notes[0].booking_id, "booking-a");
   assert.equal(result.notes[0].note, "Note for A");
 });
+
+test("does not expose database errors when note reads fail", async () => {
+  const db = {
+    prepare() {
+      return {
+        bind() { return this; },
+        async all() { throw new Error("private database detail"); }
+      };
+    }
+  };
+  const response = await onRequestGet({
+    request: request("/api/booking-notes?bookingId=b-1"),
+    env: env(db)
+  });
+  assert.equal(response.status, 503);
+  const body = await response.json();
+  assert.doesNotMatch(JSON.stringify(body), /private database detail/);
+});
+
+test("does not expose database errors when note writes fail", async () => {
+  const db = {
+    prepare(sql) {
+      return {
+        bind() { return this; },
+        async first() {
+          if (sql.includes("FROM admin_bookings")) return { id: "b-1" };
+          return null;
+        },
+        async run() { throw new Error("private database detail"); }
+      };
+    }
+  };
+  const response = await onRequestPost({
+    request: request("/api/booking-notes", {
+      method: "POST", body: { bookingId: "b-1", note: "Internal follow-up" }
+    }),
+    env: env(db)
+  });
+  assert.equal(response.status, 503);
+  const body = await response.json();
+  assert.doesNotMatch(JSON.stringify(body), /private database detail/);
+});
