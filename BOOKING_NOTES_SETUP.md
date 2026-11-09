@@ -1,237 +1,59 @@
-import test from "node:test";
-import assert from "node:assert/strict";
-import { onRequestGet, onRequestPost } from "../functions/api/booking-notes.js";
+# Preview setup: internal notes and unverified evidence
 
-const TOKEN = "test-admin-token";
-function makeDb({ bookingExists = true } = {}) {
-  const notes = [];
-  const db = {
-    notes,
-    prepare(sql) {
-      return {
-        values: [],
-        bind(...values) { this.values = values; return this; },
-        async first() {
-          if (sql.includes("FROM admin_bookings")) {
-            return bookingExists ? { id: this.values[0] } : null;
-          }
-          return null;
-        },
-        async all() {
-          return { results: notes.filter(n => n.booking_id === this.values[0]).reverse() };
-        },
-        async run() {
-          if (sql.includes("INSERT INTO booking_admin_notes")) {
-            const [id, booking_id, actor_label, note, created_at] = this.values;
-            notes.push({ id, booking_id, actor_label, note, created_at });
-          }
-          return { success: true };
-        }
-      };
-    }
-  };
-  return db;
-}
-function request(path, { method = "GET", body, token = TOKEN } = {}) {
-  const headers = new Headers();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  if (body !== undefined) headers.set("Content-Type", "application/json");
-  return new Request(`https://example.test${path}`, {
-    method, headers, body: body === undefined ? undefined : JSON.stringify(body)
-  });
-}
-const env = db => ({ SEAT_LOCKS_DB: db, FIGHTS_ADMIN_TOKEN: TOKEN });
+This guide is for the `feature/internal-booking-notes` branch and the Cloudflare **Preview** environment only.
 
-test("rejects requests without admin authorization", async () => {
-  const response = await onRequestGet({
-    request: request("/api/booking-notes?bookingId=b-1", { token: null }),
-    env: env(makeDb())
-  });
-  assert.equal(response.status, 401);
-});
+## Scope
 
-test("rejects empty and oversized notes", async () => {
-  const db = makeDb();
-  for (const note of ["", "x".repeat(2001)]) {
-    const response = await onRequestPost({
-      request: request("/api/booking-notes", {
-        method: "POST", body: { bookingId: "b-1", note }
-      }),
-      env: env(db)
-    });
-    assert.equal(response.status, 400);
-  }
-});
+- `booking_admin_notes` stores internal staff notes linked to an existing record.
+- `booking_payment_evidence` stores customer-reported metadata only.
+- Every evidence row is constrained to `received_unverified`.
+- These tables do not verify or approve payment and do not issue admission credentials.
 
-test("rejects missing, whitespace-only, and oversized Booking IDs on write", async () => {
-  const db = makeDb();
-  const invalidBodies = [
-    { bookingId: "", note: "Internal note" },
-    { bookingId: "   ", note: "Internal note" },
-    { bookingId: "x".repeat(101), note: "Internal note" },
-    { bookingId: "booking-1", note: "   " }
-  ];
+## Before applying migrations
 
-  for (const body of invalidBodies) {
-    const response = await onRequestPost({
-      request: request("/api/booking-notes", { method: "POST", body }),
-      env: env(db)
-    });
-    assert.equal(response.status, 400);
-  }
-  assert.equal(db.notes.length, 0);
-});
+1. Confirm the Cloudflare Pages deployment is a Preview deployment for this branch.
+2. Confirm the selected D1 database is the Preview database, not Production.
+3. Export a backup of the Preview D1 database before changing its schema.
+4. Review the SQL files:
+   - `migrations/0004_booking_admin_notes.sql`
+   - `migrations/0005_booking_payment_evidence.sql`
 
-test("does not add a note for an unknown Booking ID", async () => {
-  const db = makeDb({ bookingExists: false });
-  const response = await onRequestPost({
-    request: request("/api/booking-notes", {
-      method: "POST", body: { bookingId: "missing", note: "Internal follow-up" }
-    }),
-    env: env(db)
-  });
-  assert.equal(response.status, 404);
-  assert.equal(db.notes.length, 0);
-});
+## Apply to Preview only
 
-test("stores and returns notes linked to an existing Booking ID", async () => {
-  const db = makeDb();
-  const post = await onRequestPost({
-    request: request("/api/booking-notes", {
-      method: "POST",
-      body: { bookingId: "booking-123", note: "Please review the record", actorLabel: "forged-name" }
-    }),
-    env: env(db)
-  });
-  assert.equal(post.status, 201);
-  const created = await post.json();
-  assert.equal(created.note.booking_id, "booking-123");
-  assert.equal(created.note.actor_label, "admin");
+Run the two migration files against the Preview D1 database, in order (0004, then 0005), using the Cloudflare D1 console or Wrangler with the Preview database target explicitly selected. Do not run these commands against Production.
 
-  const get = await onRequestGet({
-    request: request("/api/booking-notes?bookingId=booking-123"),
-    env: env(db)
-  });
-  assert.equal(get.status, 200);
-  const listed = await get.json();
-  assert.equal(listed.notes.length, 1);
-  assert.equal(listed.notes[0].note, "Please review the record");
-});
+After applying, verify that the tables exist:
 
-test("rejects malformed JSON without writing a note", async () => {
-  const db = makeDb();
-  const malformed = new Request("https://example.test/api/booking-notes", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
-    body: "{not-json"
-  });
-  const response = await onRequestPost({ request: malformed, env: env(db) });
-  assert.equal(response.status, 400);
-  assert.equal(db.notes.length, 0);
-});
+```sql
+SELECT name
+FROM sqlite_master
+WHERE type = 'table'
+  AND name IN ('booking_admin_notes', 'booking_payment_evidence')
+ORDER BY name;
+```
 
-test("rejects missing and oversized booking IDs on read", async () => {
-  const db = makeDb();
-  for (const path of [
-    "/api/booking-notes",
-    `/api/booking-notes?bookingId=${"x".repeat(101)}`
-  ]) {
-    const response = await onRequestGet({ request: request(path), env: env(db) });
-    assert.equal(response.status, 400);
-  }
-});
+Expected: both table names are returned.
 
-test("returns service unavailable when the D1 binding is missing", async () => {
-  const get = await onRequestGet({
-    request: request("/api/booking-notes?bookingId=b-1"),
-    env: { FIGHTS_ADMIN_TOKEN: TOKEN }
-  });
-  assert.equal(get.status, 503);
+Verify the evidence-state constraint with a synthetic test row only, then remove that synthetic row after testing. Do not use real customer banking details or real transaction references in test data.
 
-  const post = await onRequestPost({
-    request: request("/api/booking-notes", {
-      method: "POST", body: { bookingId: "b-1", note: "Internal note" }
-    }),
-    env: { FIGHTS_ADMIN_TOKEN: TOKEN }
-  });
-  assert.equal(post.status, 503);
-});
+## API behavior
 
-test("keeps notes isolated between different Booking IDs", async () => {
-  const db = makeDb();
-  for (const [bookingId, note] of [
-    ["booking-a", "Note for A"],
-    ["booking-b", "Note for B"]
-  ]) {
-    const response = await onRequestPost({
-      request: request("/api/booking-notes", {
-        method: "POST", body: { bookingId, note }
-      }),
-      env: env(db)
-    });
-    assert.equal(response.status, 201);
-  }
+- `GET /api/booking-notes?bookingId=<id>` lists internal notes for an existing record.
+- `POST /api/booking-notes` adds a note to an existing record.
+- `GET /api/booking-payment-evidence?bookingId=<id>` lists internal metadata records.
+- `POST /api/booking-payment-evidence` records customer-reported metadata with state `received_unverified`.
 
-  const response = await onRequestGet({
-    request: request("/api/booking-notes?bookingId=booking-a"),
-    env: env(db)
-  });
-  assert.equal(response.status, 200);
-  const result = await response.json();
-  assert.equal(result.notes.length, 1);
-  assert.equal(result.notes[0].booking_id, "booking-a");
-  assert.equal(result.notes[0].note, "Note for A");
-});
+All endpoints require the configured admin bearer token. Never paste the token into chat, source control, screenshots, or test fixtures intended for production.
 
-test("does not expose database errors when note reads fail", async () => {
-  const db = {
-    prepare() {
-      return {
-        bind() { return this; },
-        async all() { throw new Error("private database detail"); }
-      };
-    }
-  };
-  const response = await onRequestGet({
-    request: request("/api/booking-notes?bookingId=b-1"),
-    env: env(db)
-  });
-  assert.equal(response.status, 503);
-  const body = await response.json();
-  assert.doesNotMatch(JSON.stringify(body), /private database detail/);
-});
+## Test checklist
 
-test("does not expose database errors when note writes fail", async () => {
-  const db = {
-    prepare(sql) {
-      return {
-        bind() { return this; },
-        async first() {
-          if (sql.includes("FROM admin_bookings")) return { id: "b-1" };
-          return null;
-        },
-        async run() { throw new Error("private database detail"); }
-      };
-    }
-  };
-  const response = await onRequestPost({
-    request: request("/api/booking-notes", {
-      method: "POST", body: { bookingId: "b-1", note: "Internal follow-up" }
-    }),
-    env: env(db)
-  });
-  assert.equal(response.status, 503);
-  const body = await response.json();
-  assert.doesNotMatch(JSON.stringify(body), /private database detail/);
-});
+- Unauthenticated requests return HTTP 401.
+- Invalid or oversized input is rejected.
+- Unknown record IDs cannot receive notes or evidence metadata.
+- Evidence records always remain `received_unverified`.
+- Database errors return a generic error without exposing internal details.
+- Existing Preview records remain unchanged.
 
+## Production boundary
 
-## Customer-reported evidence metadata (Preview-only, unverified)
-
-The optional `booking_payment_evidence` table stores only administrative metadata supplied by a customer or entered by staff: source type, customer-reported amount, an external reference string, reported timestamp, and a short note. Every row is permanently constrained to `received_unverified`. This feature does not connect to a bank, query a payment provider, inspect transfers, verify receipts, approve payments, or change booking status.
-
-For a Preview test, back up the Preview D1 database, review and apply `migrations/0005_booking_payment_evidence.sql` to Preview only, and deploy the branch. Do not apply this migration to Production. Use synthetic booking records and synthetic references only. Do not store account numbers, card details, passwords, PINs, OTPs, or full bank statements.
-
-- `GET /api/booking-payment-evidence?bookingId=<id>` lists up to 100 internal records.
-- `POST /api/booking-payment-evidence` accepts `bookingId`, `sourceType` (`staff_entry` or `provider_reference`), optional `reportedAmount`, optional `externalReference`, optional `reportedAt`, and optional `evidenceNote`.
-- All returned records are labelled `received_unverified`; there is no confirmation or approval endpoint.
+Do not apply these migrations to Production as part of this Preview test. Production rollout requires a separate review, a verified backup, and explicit approval.
