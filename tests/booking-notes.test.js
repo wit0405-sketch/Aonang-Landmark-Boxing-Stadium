@@ -63,6 +63,25 @@ test("rejects empty and oversized notes", async () => {
   }
 });
 
+test("rejects missing, whitespace-only, and oversized Booking IDs on write", async () => {
+  const db = makeDb();
+  const invalidBodies = [
+    { bookingId: "", note: "Internal note" },
+    { bookingId: "   ", note: "Internal note" },
+    { bookingId: "x".repeat(101), note: "Internal note" },
+    { bookingId: "booking-1", note: "   " }
+  ];
+
+  for (const body of invalidBodies) {
+    const response = await onRequestPost({
+      request: request("/api/booking-notes", { method: "POST", body }),
+      env: env(db)
+    });
+    assert.equal(response.status, 400);
+  }
+  assert.equal(db.notes.length, 0);
+});
+
 test("does not add a note for an unknown Booking ID", async () => {
   const db = makeDb({ bookingExists: false });
   const response = await onRequestPost({
