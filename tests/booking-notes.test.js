@@ -137,3 +137,29 @@ test("returns service unavailable when the D1 binding is missing", async () => {
   });
   assert.equal(post.status, 503);
 });
+
+test("keeps notes isolated between different Booking IDs", async () => {
+  const db = makeDb();
+  for (const [bookingId, note] of [
+    ["booking-a", "Note for A"],
+    ["booking-b", "Note for B"]
+  ]) {
+    const response = await onRequestPost({
+      request: request("/api/booking-notes", {
+        method: "POST", body: { bookingId, note }
+      }),
+      env: env(db)
+    });
+    assert.equal(response.status, 201);
+  }
+
+  const response = await onRequestGet({
+    request: request("/api/booking-notes?bookingId=booking-a"),
+    env: env(db)
+  });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.notes.length, 1);
+  assert.equal(result.notes[0].booking_id, "booking-a");
+  assert.equal(result.notes[0].note, "Note for A");
+});
