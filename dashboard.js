@@ -20,26 +20,27 @@ async function editFight(id){const fight=id?fights.find(x=>x.id===id):null,index
 document.getElementById('fightImageInput').addEventListener('change',async event=>{const file=event.target.files?.[0];if(!file)return;try{pendingFightImage=await compressFightImage(file);document.getElementById('fightImagePreview').style.backgroundImage=`url("${pendingFightImage}")`}catch(error){console.error(error);alert(tr('เปิดรูปภาพนี้ไม่ได้','Could not read this image'))}});document.getElementById('resetFightImage').onclick=()=>{pendingFightImage='__RESET__';const id=document.getElementById('fightId').value,index=id?fights.findIndex(f=>f.id===id):fights.length;document.getElementById('fightImagePreview').style.backgroundImage=`url("${defaultFightPhoto(index)}")`};
 document.getElementById('fightForm').addEventListener('submit',async event=>{event.preventDefault();const id=document.getElementById('fightId').value;const entry={id:id||`f${Date.now()}`,date:document.getElementById('fightDateInput').value,title:document.getElementById('fightTitle').value.trim(),description:document.getElementById('fightDescription').value.trim(),type:document.getElementById('fightTypeInput').value,status:document.getElementById('fightStatusInput').value};if(!entry.title||!entry.date)return;try{if(pendingFightImage==='__RESET__')await SiteImageStore.remove(`schedule-${entry.id}`);else if(pendingFightImage)await SiteImageStore.set(`schedule-${entry.id}`,pendingFightImage)}catch(error){console.error(error);alert(error.message==='Connect the EdgeOne admin key before syncing images.'?tr('กรุณาเชื่อมต่อคีย์ผู้ดูแล EdgeOne ก่อน เพื่อซิงก์รูปไปยังอุปกรณ์อื่น','Connect the EdgeOne admin key first to sync this photo across devices.'):tr('บันทึกรูปไม่สำเร็จ กรุณาตรวจสอบ EdgeOne','Could not save the photo. Check Cloudflare.'));return}fights=id?fights.map(f=>f.id===id?entry:f):[...fights,entry];pendingFightImage='';save();notifyFightScheduleSaved();document.getElementById('fightDialog').close();render();toast(tr('บันทึกรายการแข่งขันแล้ว','Event saved'))});
 function renderBookings(){
- const q=document.getElementById('bookingSearch').value.toLowerCase();
- const filter=document.getElementById('bookingFilter').value;
- const list=bookings.filter(b=>(filter==='all'||b.status===filter)&&`${b.name} ${b.email} ${b.phone}`.toLowerCase().includes(q));
+ let q=document.getElementById('bookingSearch').value.toLowerCase(),filter=document.getElementById('bookingFilter').value;
+ let list=bookings.filter(b=>(filter==='all'||b.status===filter)&&`${b.name} ${b.email} ${b.phone}`.toLowerCase().includes(q));
  document.getElementById('bookingMetric').textContent=bookings.length;
  document.getElementById('newMetric').textContent=bookings.filter(b=>b.status==='new').length;
  document.getElementById('emptyBookings').classList.toggle('hidden',list.length>0);
- document.getElementById('bookingTable').innerHTML=list.length?`<table><thead><tr><th>${tr('ผู้จอง','GUEST')}</th><th>${tr('รายละเอียด','DETAILS')}</th><th>${tr('วันที่ส่ง','SUBMITTED')}</th><th>${tr('สถานะ','STATUS')}</th><th>${tr('จัดการ','ACTIONS')}</th></tr></thead><tbody>${list.map(b=>{const submitted=b.created||b.created_at||new Date().toISOString();const statusText=b.status==='new'?tr('ใหม่','NEW'):b.status==='pending_payment'?tr('รอชำระเงิน','AWAITING PAYMENT'):tr('ตรวจสอบแล้ว','REVIEWED');return `<tr><td class="event-name">${escape(b.name)}<br><small>${escape(b.email)} · ${escape(b.phone)}</small></td><td>${escape(b.kind)} · ${escape(b.selection)}<br>${escape(b.date)} · ${escape(b.count)} ${tr('คน/ใบ','guest(s)')}</td><td>${new Date(submitted).toLocaleDateString(lang==='th'?'th-TH':'en-GB')}</td><td><span class="pill">${statusText}</span></td><td><div class="actions"><button class="small-btn" data-review="${escape(b.id)}">${b.status==='reviewed'?tr('คืนสถานะใหม่','Mark new'):tr('ตรวจสอบ','Review')}</button><button class="small-btn delete" data-bookdelete="${escape(b.id)}">${tr('ลบ','Delete')}</button></div></td></tr>`}).join('')}</tbody></table>`: '';
- document.querySelectorAll('[data-review]').forEach(btn=>btn.onclick=async()=>{
-  const booking=bookings.find(b=>b.id===btn.dataset.review);if(!booking)return;
-  const status=booking.status==='reviewed'?'new':'reviewed';
-  try{await window.AdminBookingApi.update(booking.id,status);bookings=bookings.map(b=>b.id===booking.id?{...b,status}:b);try{localStorage.setItem(BKEY,JSON.stringify(bookings))}catch{}renderBookings()}
-  catch(error){alert(tr('เปลี่ยนสถานะไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ Cloudflare','Could not update booking. Check the Cloudflare connection.'));console.error(error)}
- });
- document.querySelectorAll('[data-bookdelete]').forEach(btn=>btn.onclick=async()=>{
-  if(!confirm(tr('ลบรายการจองนี้หรือไม่?','Delete this booking request?')))return;
-  try{await window.AdminBookingApi.remove(btn.dataset.bookdelete);bookings=bookings.filter(b=>b.id!==btn.dataset.bookdelete);try{localStorage.setItem(BKEY,JSON.stringify(bookings))}catch{}renderBookings()}
-  catch(error){alert(tr('ลบรายการไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ Cloudflare','Could not delete booking. Check the Cloudflare connection.'));console.error(error)}
+ document.getElementById('bookingTable').innerHTML=list.length?`<table><thead><tr><th>${tr('ผู้จอง','GUEST')}</th><th>${tr('รายละเอียด','DETAILS')}</th><th>${tr('วันที่ส่ง','SUBMITTED')}</th><th>${tr('สถานะข้อมูล','RECORD STATUS')}</th><th>${tr('หมายเหตุภายใน','INTERNAL NOTES')}</th></tr></thead><tbody>${list.map(b=>{const submitted=b.created||b.created_at||new Date().toISOString();return `<tr><td class="event-name">${escape(b.name)}<br><small>${escape(b.email)} · ${escape(b.phone)}</small></td><td>${escape(b.kind)} · ${escape(b.selection)}<br>${escape(b.date)} · ${escape(b.count)} ${tr('คน/ใบ','guest(s)')}</td><td>${new Date(submitted).toLocaleDateString(lang==='th'?'th-TH':'en-GB')}</td><td><span class="pill">${escape(b.status||'—').toUpperCase()}</span></td><td><button class="small-btn" data-internal-note="${escape(b.id)}">${tr('เพิ่มหมายเหตุ','Add note')}</button><div id="note-result-${escape(b.id)}" aria-live="polite"></div></td></tr>`}).join('')}</tbody></table>`:'';
+ document.querySelectorAll('[data-internal-note]').forEach(btn=>btn.onclick=async()=>{
+  const bookingId=btn.dataset.internalNote;
+  const note=prompt(tr('บันทึกหมายเหตุสำหรับงานธุรการภายในเท่านั้น:','Internal administrative note only:'));
+  if(note===null||!note.trim())return;
+  btn.disabled=true;
+  const target=document.getElementById('note-result-'+CSS.escape(bookingId));
+  try{
+   await window.AdminBookingApi.addInternalNote(bookingId,note.trim());
+   const notes=await window.AdminBookingApi.getInternalNotes(bookingId);
+   if(target)target.textContent=tr('บันทึกแล้ว · หมายเหตุ ','Saved · notes ')+notes.length;
+   toast(tr('บันทึกหมายเหตุภายในแล้ว','Internal note saved'));
+  }catch(error){if(target)target.textContent=error.message;console.error(error)}
+  finally{btn.disabled=false}
  });
 }
-window.getDashboardFightSchedule=()=>fights;
 function render(){header();renderFights();renderBookings()}
 window.addEventListener('shared-fights-loaded',event=>{if(Array.isArray(event.detail?.fights)){fights=event.detail.fights;save();render()}});
 window.addEventListener('shared-bookings-loaded',event=>{if(Array.isArray(event.detail?.bookings)){bookings=event.detail.bookings;try{localStorage.setItem(BKEY,JSON.stringify(bookings))}catch{}renderBookings();bookingSyncMessage(tr(`เชื่อมต่อ D1 สำเร็จ · ${bookings.length} รายการ`,`Connected to D1 · ${bookings.length} request(s)`),true)}});
