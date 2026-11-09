@@ -1,6 +1,8 @@
 (()=>{
   const tokenKey='aonang-fight-sync-token';
   const token=()=>{try{return localStorage.getItem(tokenKey)||''}catch{return ''}};
+  let connectedAdminToken=token();
+  const adminToken=()=>connectedAdminToken||token();
   let localSchedulePending=false,localScheduleFreshUntil=0;
   async function refreshSchedule(){if(!token()||localSchedulePending||Date.now()<localScheduleFreshUntil||!window.FightScheduleSync)return;const state=await window.FightScheduleSync.readState();if(!state.initialized||!Array.isArray(state.fights))return;let current=[];try{current=JSON.parse(localStorage.getItem('aonang-fights')||'[]')}catch{}if(JSON.stringify(current)!==JSON.stringify(state.fights)){localStorage.setItem('aonang-fights',JSON.stringify(state.fights));window.dispatchEvent(new CustomEvent('shared-fights-loaded',{detail:{fights:state.fights}}))}}
   const isThai=()=>{try{return localStorage.getItem('aonang-language-v2')==='th'}catch{return false}};
@@ -17,6 +19,12 @@
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Could not load shared booking requests.');
     window.dispatchEvent(new CustomEvent('shared-bookings-loaded',{detail:{bookings:Array.isArray(data.bookings)?data.bookings:[]}}));
+  }
+  async function importLegacyKvBookings(value){
+    const response=await fetch('/api/admin-booking-import',{method:'POST',cache:'no-store',headers:{...authHeaders(value),'Content-Type':'application/json'},body:JSON.stringify({source:'website_bookings'})});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Could not import existing shared bookings from KV.');
+    return data;
   }
   async function migrateBookings(value){
     let old=[];try{old=JSON.parse(localStorage.getItem('aonang-bookings')||'[]')}catch{}
@@ -43,9 +51,11 @@
       const schedule=state.initialized?state.fights:(window.getDashboardFightSchedule?.()||state.fights);
       if(!state.initialized){await window.FightScheduleSync.write(schedule,value);localScheduleFreshUntil=Date.now()+65000}
       localStorage.setItem(tokenKey,value);
+      connectedAdminToken=value;
       localSchedulePending=false;
       localStorage.setItem('aonang-fights',JSON.stringify(schedule));
       window.dispatchEvent(new CustomEvent('shared-fights-loaded',{detail:{fights:schedule}}));
+      // Existing bookings are already read from D1. Do not require the optional legacy KV binding on every admin connection.
       await migrateBookings(value);
       await loadBookings(value);
       await syncYoutube(value);
@@ -60,9 +70,12 @@
     }finally{if(connectButton)connectButton.disabled=false}
   }
   window.AdminBookingApi={
-    async update(id,statusValue){const value=token();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/bookings',{method:'POST',headers:{...authHeaders(value),'Content-Type':'application/json'},body:JSON.stringify({action:'admin_update',id,status:statusValue})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.detail?data.error+' '+data.detail:(data.error||'Could not update booking.'));return data},
-    async remove(id){const value=token();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/bookings?id='+encodeURIComponent(id),{method:'DELETE',headers:authHeaders(value)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not delete booking.');return data},
-    async refresh(){const value=token();if(value)await loadBookings(value)}
+    async addInternalNote(bookingId,note){const value=adminToken();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/booking-notes',{method:'POST',headers:{...authHeaders(value),'Content-Type':'application/json'},body:JSON.stringify({bookingId,note})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not save internal note.');return data},
+    async getInternalNotes(bookingId){const value=adminToken();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/booking-notes?bookingId='+encodeURIComponent(bookingId),{cache:'no-store',headers:authHeaders(value)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not load internal notes.');return data.notes||[]},
+    async deleteBookingPermanently(bookingId){const value=adminToken();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/bookings',{method:'POST',headers:{...authHeaders(value),'Content-Type':'application/json'},body:JSON.stringify({action:'admin_delete',id:bookingId})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not permanently delete booking.');return data},
+    async archiveBooking(bookingId){const value=adminToken();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/bookings',{method:'POST',headers:{...authHeaders(value),'Content-Type':'application/json'},body:JSON.stringify({action:'admin_archive',id:bookingId})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not archive booking record.');return data},
+    async restoreBooking(bookingId){const value=adminToken();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/bookings',{method:'POST',headers:{...authHeaders(value),'Content-Type':'application/json'},body:JSON.stringify({action:'admin_restore',id:bookingId})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not restore booking record.');return data},
+    async refresh(){const value=adminToken();if(value)await loadBookings(value)}
   };
   if(tokenInput&&connectButton&&bookingStatus&&window.FightScheduleSync){
     tokenInput.value=token();
