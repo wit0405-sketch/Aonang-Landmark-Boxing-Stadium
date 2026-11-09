@@ -98,3 +98,42 @@ test("stores and returns notes linked to an existing Booking ID", async () => {
   assert.equal(listed.notes.length, 1);
   assert.equal(listed.notes[0].note, "Please review the record");
 });
+
+test("rejects malformed JSON without writing a note", async () => {
+  const db = makeDb();
+  const malformed = new Request("https://example.test/api/booking-notes", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+    body: "{not-json"
+  });
+  const response = await onRequestPost({ request: malformed, env: env(db) });
+  assert.equal(response.status, 400);
+  assert.equal(db.notes.length, 0);
+});
+
+test("rejects missing and oversized booking IDs on read", async () => {
+  const db = makeDb();
+  for (const path of [
+    "/api/booking-notes",
+    `/api/booking-notes?bookingId=${"x".repeat(101)}`
+  ]) {
+    const response = await onRequestGet({ request: request(path), env: env(db) });
+    assert.equal(response.status, 400);
+  }
+});
+
+test("returns service unavailable when the D1 binding is missing", async () => {
+  const get = await onRequestGet({
+    request: request("/api/booking-notes?bookingId=b-1"),
+    env: { FIGHTS_ADMIN_TOKEN: TOKEN }
+  });
+  assert.equal(get.status, 503);
+
+  const post = await onRequestPost({
+    request: request("/api/booking-notes", {
+      method: "POST", body: { bookingId: "b-1", note: "Internal note" }
+    }),
+    env: { FIGHTS_ADMIN_TOKEN: TOKEN }
+  });
+  assert.equal(post.status, 503);
+});
