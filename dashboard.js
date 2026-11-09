@@ -25,7 +25,7 @@ function renderBookings(){
  document.getElementById('bookingMetric').textContent=bookings.length;
  document.getElementById('newMetric').textContent=bookings.filter(b=>b.status==='new').length;
  document.getElementById('emptyBookings').classList.toggle('hidden',list.length>0);
- document.getElementById('bookingTable').innerHTML=list.length?`<table><thead><tr><th>${tr('ผู้จอง','GUEST')}</th><th>${tr('รายละเอียด','DETAILS')}</th><th>${tr('วันที่ส่ง','SUBMITTED')}</th><th>${tr('สถานะข้อมูล','RECORD STATUS')}</th><th>${tr('หมายเหตุภายใน','INTERNAL NOTES')}</th></tr></thead><tbody>${list.map(b=>{const submitted=b.created||b.created_at||new Date().toISOString();return `<tr><td class="event-name">${escape(b.name)}<br><small>${escape(b.email)} · ${escape(b.phone)}</small></td><td>${escape(b.kind)} · ${escape(b.selection)}<br>${escape(b.date)} · ${escape(b.count)} ${tr('คน/ใบ','guest(s)')}</td><td>${new Date(submitted).toLocaleDateString(lang==='th'?'th-TH':'en-GB')}</td><td><span class="pill">${escape(b.status||'—').toUpperCase()}</span></td><td><button class="small-btn" data-internal-note="${escape(b.id)}">${tr('เพิ่มหมายเหตุ','Add note')}</button><div class="internal-note-history" id="note-result-${escape(b.id)}" aria-live="polite"><small>${tr('กำลังโหลดประวัติหมายเหตุ…','Loading note history…')}</small></div></td></tr>`}).join('')}</tbody></table>`:'';
+ document.getElementById('bookingTable').innerHTML=list.length?`<table><thead><tr><th>${tr('ผู้จอง','GUEST')}</th><th>${tr('รายละเอียด','DETAILS')}</th><th>${tr('วันที่ส่ง','SUBMITTED')}</th><th>${tr('สถานะข้อมูล','RECORD STATUS')}</th><th>${tr('หมายเหตุภายใน','INTERNAL NOTES')}</th></tr></thead><tbody>${list.map(b=>{const submitted=b.created||b.created_at||new Date().toISOString();return `<tr><td class="event-name">${escape(b.name)}<br><small>${escape(b.email)} · ${escape(b.phone)}</small></td><td>${escape(b.kind)} · ${escape(b.selection)}<br>${escape(b.date)} · ${escape(b.count)} ${tr('คน/ใบ','guest(s)')}</td><td>${new Date(submitted).toLocaleDateString(lang==='th'?'th-TH':'en-GB')}</td><td><span class="pill">${escape(b.status||'—').toUpperCase()}</span></td><td><button class="small-btn" data-internal-note="${escape(b.id)}">${tr('เพิ่มหมายเหตุ','Add note')}</button> <button class="small-btn" type="button" data-note-history-toggle="${escape(b.id)}" aria-expanded="false">${tr('ดูประวัติ','View history')}</button><div class="internal-note-history" id="note-result-${escape(b.id)}" aria-live="polite" hidden></div></td></tr>`}).join('')}</tbody></table>`:'';
  document.querySelectorAll('[data-internal-note]').forEach(btn=>btn.onclick=async()=>{
   const bookingId=btn.dataset.internalNote;
   const note=prompt(tr('บันทึกหมายเหตุสำหรับงานธุรการภายในเท่านั้น:','Internal administrative note only:'));
@@ -35,25 +35,37 @@ function renderBookings(){
   try{
    await window.AdminBookingApi.addInternalNote(bookingId,note.trim());
    toast(tr('บันทึกหมายเหตุภายในแล้ว','Internal note saved'));
-   await loadInternalNoteHistory(bookingId);
-  }catch(error){if(target)target.textContent=error.message;console.error(error)}
+   const historyButton=document.querySelector('[data-note-history-toggle="'+CSS.escape(bookingId)+'"]');
+   if(historyButton?.getAttribute('aria-expanded')==='true')await loadInternalNoteHistory(bookingId);
+   else if(target){target.hidden=false;target.textContent=tr('บันทึกแล้ว · กด “ดูประวัติ” เพื่อเปิดดูข้อความ','Saved · select View history to read notes');}
+  }catch(error){if(target){target.hidden=false;target.textContent=error.message;}console.error(error)}
   finally{btn.disabled=false}
  });
- list.forEach(b=>loadInternalNoteHistory(b.id));
+ document.querySelectorAll('[data-note-history-toggle]').forEach(btn=>btn.onclick=async()=>{
+  const bookingId=btn.dataset.noteHistoryToggle;
+  const target=document.getElementById('note-result-'+CSS.escape(bookingId));
+  const expanded=btn.getAttribute('aria-expanded')==='true';
+  if(expanded){btn.setAttribute('aria-expanded','false');btn.textContent=tr('ดูประวัติ','View history');if(target)target.hidden=true;return;}
+  btn.setAttribute('aria-expanded','true');btn.textContent=tr('ซ่อนประวัติ','Hide history');
+  if(target){target.hidden=false;target.textContent=tr('กำลังโหลดประวัติหมายเหตุ…','Loading note history…');}
+  await loadInternalNoteHistory(bookingId);
+ });
 }
 async function loadInternalNoteHistory(bookingId){
  const target=document.getElementById('note-result-'+CSS.escape(String(bookingId)));
  if(!target||!window.AdminBookingApi)return;
+ target.hidden=false;
+ target.textContent=tr('กำลังโหลดประวัติหมายเหตุ…','Loading note history…');
  try{
   const notes=await window.AdminBookingApi.getInternalNotes(bookingId);
   if(!target.isConnected)return;
   if(!notes.length){target.innerHTML=`<small>${tr('ยังไม่มีหมายเหตุ','No internal notes yet')}</small>`;return}
   target.innerHTML=notes.map(item=>{
    const date=item.created_at?new Date(item.created_at).toLocaleString(lang==='th'?'th-TH':'en-GB'):'';
-   return `<div class="internal-note-entry"><small>${escape(date)}</small><div>${escape(item.note||'')}</div></div>`;
+   return `<div class="internal-note-entry"><small>${escape(date)} · ${escape(item.actor_label||'admin')}</small><div>${escape(item.note||'')}</div></div>`;
   }).join('');
  }catch(error){
-  if(target&&target.isConnected)target.innerHTML=`<small>${tr('เชื่อมต่อเพื่อดูประวัติหมายเหตุ','Connect admin key to view note history')}</small>`;
+  if(target&&target.isConnected)target.innerHTML=`<small>${escape(error.message||tr('โหลดประวัติไม่สำเร็จ','Could not load note history'))}</small>`;
  }
 }
 
