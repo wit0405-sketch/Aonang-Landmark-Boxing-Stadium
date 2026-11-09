@@ -61,10 +61,11 @@ export async function onRequestPost({request,env}){
    const database=db(env);if(!database)throw new Error('D1 binding missing');
    const row=await database.prepare('SELECT id FROM admin_bookings WHERE id=?').bind(p.id).first();
    if(!row)return json({error:'Booking not found.'},404);
-   await database.batch([
-    database.prepare('DELETE FROM booking_admin_notes WHERE booking_id=?').bind(p.id),
-    database.prepare('DELETE FROM admin_bookings WHERE id=?').bind(p.id)
-   ]);
+   const statements=[database.prepare('DELETE FROM booking_admin_notes WHERE booking_id=?').bind(p.id)];
+   const evidenceSchema=await database.prepare('PRAGMA table_info(booking_payment_evidence)').all();
+   if((evidenceSchema.results||[]).length)statements.push(database.prepare('DELETE FROM booking_payment_evidence WHERE booking_id=?').bind(p.id));
+   statements.push(database.prepare('DELETE FROM admin_bookings WHERE id=?').bind(p.id));
+   await database.batch(statements);
    return json({ok:true,deleted:true});
   }catch(error){return json({error:'Could not permanently delete booking and its internal notes.',detail:String(error?.message||error).slice(0,200)},503)}
  }
