@@ -41,10 +41,6 @@ export async function onRequestPost({ request, env }) {
   }
   const bookingId = typeof body?.bookingId === "string" ? body.bookingId.trim() : "";
   const note = typeof body?.note === "string" ? body.note.trim() : "";
-  const actorLabel = typeof body?.actorLabel === "string"
-    ? body.actorLabel.trim().slice(0, 80)
-    : "admin";
-
   if (!bookingId || bookingId.length > 100 || !note || note.length > 2000) {
     return json({ error: "bookingId and a note of 1–2000 characters are required." }, 400);
   }
@@ -61,7 +57,7 @@ export async function onRequestPost({ request, env }) {
     const item = {
       id: crypto.randomUUID(),
       booking_id: bookingId,
-      actor_label: actorLabel || "admin",
+      actor_label: "admin",
       note,
       created_at: new Date().toISOString()
     };
