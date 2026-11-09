@@ -1,6 +1,8 @@
 (()=>{
   const tokenKey='aonang-fight-sync-token';
   const token=()=>{try{return localStorage.getItem(tokenKey)||''}catch{return ''}};
+  let connectedAdminToken=token();
+  const adminToken=()=>connectedAdminToken||token();
   let localSchedulePending=false,localScheduleFreshUntil=0;
   async function refreshSchedule(){if(!token()||localSchedulePending||Date.now()<localScheduleFreshUntil||!window.FightScheduleSync)return;const state=await window.FightScheduleSync.readState();if(!state.initialized||!Array.isArray(state.fights))return;let current=[];try{current=JSON.parse(localStorage.getItem('aonang-fights')||'[]')}catch{}if(JSON.stringify(current)!==JSON.stringify(state.fights)){localStorage.setItem('aonang-fights',JSON.stringify(state.fights));window.dispatchEvent(new CustomEvent('shared-fights-loaded',{detail:{fights:state.fights}}))}}
   const isThai=()=>{try{return localStorage.getItem('aonang-language-v2')==='th'}catch{return false}};
@@ -49,6 +51,7 @@
       const schedule=state.initialized?state.fights:(window.getDashboardFightSchedule?.()||state.fights);
       if(!state.initialized){await window.FightScheduleSync.write(schedule,value);localScheduleFreshUntil=Date.now()+65000}
       localStorage.setItem(tokenKey,value);
+      connectedAdminToken=value;
       localSchedulePending=false;
       localStorage.setItem('aonang-fights',JSON.stringify(schedule));
       window.dispatchEvent(new CustomEvent('shared-fights-loaded',{detail:{fights:schedule}}));
@@ -67,9 +70,9 @@
     }finally{if(connectButton)connectButton.disabled=false}
   }
   window.AdminBookingApi={
-    async addInternalNote(bookingId,note){const value=token();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/booking-notes',{method:'POST',headers:{...authHeaders(value),'Content-Type':'application/json'},body:JSON.stringify({bookingId,note})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not save internal note.');return data},
-    async getInternalNotes(bookingId){const value=token();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/booking-notes?bookingId='+encodeURIComponent(bookingId),{cache:'no-store',headers:authHeaders(value)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not load internal notes.');return data.notes||[]},
-    async refresh(){const value=token();if(value)await loadBookings(value)}
+    async addInternalNote(bookingId,note){const value=adminToken();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/booking-notes',{method:'POST',headers:{...authHeaders(value),'Content-Type':'application/json'},body:JSON.stringify({bookingId,note})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not save internal note.');return data},
+    async getInternalNotes(bookingId){const value=adminToken();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/booking-notes?bookingId='+encodeURIComponent(bookingId),{cache:'no-store',headers:authHeaders(value)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not load internal notes.');return data.notes||[]},
+    async refresh(){const value=adminToken();if(value)await loadBookings(value)}
   };
   if(tokenInput&&connectButton&&bookingStatus&&window.FightScheduleSync){
     tokenInput.value=token();
