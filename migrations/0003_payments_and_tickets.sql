@@ -21,7 +21,9 @@ CREATE TABLE IF NOT EXISTS issued_tickets (
   status TEXT NOT NULL DEFAULT 'valid',
   payload TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  used_at TEXT
+  used_at TEXT,
+  email_status TEXT NOT NULL DEFAULT 'pending',
+  email_sent_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_issued_tickets_booking ON issued_tickets(booking_id);
 CREATE INDEX IF NOT EXISTS idx_issued_tickets_status ON issued_tickets(status);
