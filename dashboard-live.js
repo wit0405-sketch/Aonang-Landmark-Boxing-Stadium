@@ -67,8 +67,8 @@
     }finally{if(connectButton)connectButton.disabled=false}
   }
   window.AdminBookingApi={
-    async update(id,statusValue){const value=token();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/bookings',{method:'POST',headers:{...authHeaders(value),'Content-Type':'application/json'},body:JSON.stringify({action:'admin_update',id,status:statusValue})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.detail?data.error+' '+data.detail:(data.error||'Could not update booking.'));return data},
-    async remove(id){const value=token();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/bookings?id='+encodeURIComponent(id),{method:'DELETE',headers:authHeaders(value)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not delete booking.');return data},
+    async addInternalNote(bookingId,note){const value=token();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/booking-notes',{method:'POST',headers:{...authHeaders(value),'Content-Type':'application/json'},body:JSON.stringify({bookingId,note})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not save internal note.');return data},
+    async getInternalNotes(bookingId){const value=token();if(!value)throw new Error('Connect the Cloudflare admin key first.');const response=await fetch('/api/booking-notes?bookingId='+encodeURIComponent(bookingId),{cache:'no-store',headers:authHeaders(value)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Could not load internal notes.');return data.notes||[]},
     async refresh(){const value=token();if(value)await loadBookings(value)}
   };
   if(tokenInput&&connectButton&&bookingStatus&&window.FightScheduleSync){
