@@ -11,7 +11,7 @@ function validBooking(b){
   return false;
  }));
  return b&&typeof b==='object'&&typeof b.name==='string'&&b.name.trim().length>0&&b.name.length<=100&&
-  typeof b.email==='string'&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(b.email)&&b.email.length<=180&&
+  typeof b.email==='string'&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email)&&b.email.length<=180&&
   typeof b.phone==='string'&&b.phone.length<=50&&['Fight night','Training'].includes(b.kind)&&
   typeof b.selection==='string'&&b.selection.length<=200&&typeof b.date==='string'&&b.date.length<=30&&
   Number.isInteger(Number(b.count))&&Number(b.count)>=1&&Number(b.count)<=10&&validSeats&&
