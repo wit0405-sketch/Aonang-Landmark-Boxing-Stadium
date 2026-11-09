@@ -52,7 +52,7 @@
       localSchedulePending=false;
       localStorage.setItem('aonang-fights',JSON.stringify(schedule));
       window.dispatchEvent(new CustomEvent('shared-fights-loaded',{detail:{fights:schedule}}));
-      await importLegacyKvBookings(value);
+      // Existing bookings are already read from D1. Do not require the optional legacy KV binding on every admin connection.
       await migrateBookings(value);
       await loadBookings(value);
       await syncYoutube(value);
