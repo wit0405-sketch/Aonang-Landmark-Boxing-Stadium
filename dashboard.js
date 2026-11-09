@@ -43,10 +43,10 @@ function renderBookings(){
  });
  document.querySelectorAll('[data-archive-booking]').forEach(btn=>btn.onclick=async()=>{
   const bookingId=btn.dataset.archiveBooking;
-  const confirmed=confirm(tr('ยืนยันซ่อนรายการนี้จากหน้ารายการจอง? ข้อมูลจะถูกเก็บไว้ใน D1 และสามารถกู้คืนได้โดยผู้ดูแลระบบ','Hide this record from the booking list? It will remain stored in D1 and can be restored by an administrator.'));
+  const confirmed=confirm(tr('ยืนยันลบรายการจองและหมายเหตุภายในออกจาก D1 อย่างถาวร? ไม่สามารถกู้คืนได้','Permanently delete this booking and its internal notes from D1? This cannot be undone.'));
   if(!confirmed)return;
   btn.disabled=true;
-  try{await window.AdminBookingApi.archiveBooking(bookingId);bookings=bookings.map(item=>item.id===bookingId?{...item,admin_record_state:'archived'}:item);renderBookings();toast(tr('ซ่อนรายการแล้ว (เก็บข้อมูลไว้ใน D1)','Record hidden; data retained in D1'));}
+  try{await window.AdminBookingApi.deleteBookingPermanently(bookingId);bookings=bookings.filter(item=>item.id!==bookingId);renderBookings();toast(tr('ลบรายการและหมายเหตุออกจาก D1 ถาวรแล้ว','Booking and internal notes permanently deleted from D1'));}
   catch(error){btn.disabled=false;alert(error.message||tr('ซ่อนรายการไม่สำเร็จ','Could not hide record'));}
  });
  document.querySelectorAll('[data-note-history-toggle]').forEach(btn=>btn.onclick=async()=>{

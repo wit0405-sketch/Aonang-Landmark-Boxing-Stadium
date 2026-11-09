@@ -54,6 +54,20 @@ export async function onRequestPost({request,env}){
    return json({ok:true,booking});
   }catch(error){return json({error:'Could not update booking in D1.',detail:String(error?.message||error).slice(0,240)},503)}
  }
+ if(p?.action==='admin_delete'){
+  if(!authorized(request,env))return json({error:'Admin authorization required.'},401);
+  if(typeof p.id!=='string'||!p.id.trim())return json({error:'Booking ID is required.'},400);
+  try{
+   const database=db(env);if(!database)throw new Error('D1 binding missing');
+   const row=await database.prepare('SELECT id FROM admin_bookings WHERE id=?').bind(p.id).first();
+   if(!row)return json({error:'Booking not found.'},404);
+   await database.batch([
+    database.prepare('DELETE FROM booking_admin_notes WHERE booking_id=?').bind(p.id),
+    database.prepare('DELETE FROM admin_bookings WHERE id=?').bind(p.id)
+   ]);
+   return json({ok:true,deleted:true});
+  }catch(error){return json({error:'Could not permanently delete booking and its internal notes.',detail:String(error?.message||error).slice(0,200)},503)}
+ }
  if(p?.action==='admin_archive'||p?.action==='admin_restore'){
   if(!authorized(request,env))return json({error:'Admin authorization required.'},401);
   if(typeof p.id!=='string'||!p.id.trim())return json({error:'Booking ID is required.'},400);
