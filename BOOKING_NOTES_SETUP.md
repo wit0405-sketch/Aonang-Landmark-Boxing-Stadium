@@ -15,6 +15,9 @@ This feature is for internal administrative recordkeeping only. A note is not pr
 1. Create or select a dedicated D1 database for Preview testing. Confirm its database name and ID before changing any binding.
 2. In Cloudflare Pages, configure the **Preview** environment's `SEAT_LOCKS_DB` binding to that Preview database. Leave the Production binding unchanged.
 3. Configure a Preview-only `FIGHTS_ADMIN_TOKEN` secret. Never paste the token into source code, commits, screenshots, or chat.
+   - Confirm the variable name is exactly `FIGHTS_ADMIN_TOKEN` (including the final `N`) and its type is **Secret** under the **Preview** environment.
+   - After saving or changing this secret, create a **new Preview deployment** from `feature/internal-booking-notes`. Test the URL shown on that newest deployment; an older deployment may still use the previous environment configuration.
+   - Do not add quotation marks or leading/trailing spaces around the token value.
 4. Prepare the Preview database with the required existing schema, including `admin_bookings`, using a reviewed schema-only setup and synthetic test data.
 5. Back up the Preview database, then apply `migrations/0004_booking_admin_notes.sql` to the **Preview database only**.
 6. Verify that `booking_admin_notes` exists in Preview and that existing tables and records remain intact.
