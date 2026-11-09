@@ -40,15 +40,22 @@ export async function onRequestPost({request,env}){
    await database.prepare("UPDATE booking_payments SET status='paid_seat_conflict',updated_at=? WHERE id=?").bind(new Date().toISOString(),payment.id).run();
    return json({ok:true,status:'paid_seat_conflict',needsManualReview:true});
   }
-  const ticketId='ALB-'+new Date().getUTCFullYear()+'-'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase();
-  const ticket={id:ticketId,bookingId:booking.id,name:booking.name,email:booking.email,eventDate:booking.date,seats,amount:payment.amount,currency:'THB',status:'valid',issuedAt:new Date().toISOString()};
+  const existingTicket=await database.prepare('SELECT id,email_status FROM issued_tickets WHERE payment_id=? LIMIT 1').bind(payment.id).first();
+  const ticketId=existingTicket?.id || ('ALB-'+new Date().getUTCFullYear()+'-'+crypto.randomUUID().replace(/-/g,'').slice(0,10).toUpperCase());
+  const issuedAt=new Date().toISOString();
+  const ticket={id:ticketId,bookingId:booking.id,name:booking.name,email:booking.email,eventDate:booking.date,seats,amount:payment.amount,currency:'THB',status:'valid',issuedAt};
   await database.batch([
-   database.prepare("UPDATE booking_payments SET status='successful',updated_at=? WHERE id=?").bind(new Date().toISOString(),payment.id),
+   database.prepare("UPDATE booking_payments SET status='successful',updated_at=? WHERE id=?").bind(issuedAt,payment.id),
    database.prepare("UPDATE seat_locks SET status='booked',expires_at=NULL WHERE event_date=? AND lock_token=? AND status='held'").bind(booking.date,booking.lockToken),
    database.prepare("UPDATE admin_bookings SET status='paid',payload=? WHERE id=?").bind(JSON.stringify({...booking,status:'paid',paymentId:payment.id,ticketId}),booking.id),
-   database.prepare("INSERT OR IGNORE INTO issued_tickets(id,booking_id,payment_id,status,payload,created_at) VALUES(?,?,?,'valid',?,?)").bind(ticketId,booking.id,payment.id,JSON.stringify(ticket),ticket.issuedAt)
+   database.prepare("INSERT OR IGNORE INTO issued_tickets(id,booking_id,payment_id,status,payload,created_at) VALUES(?,?,?,'valid',?,?)").bind(ticketId,booking.id,payment.id,JSON.stringify(ticket),issuedAt)
   ]);
-  const email=await sendTicketEmail(env,booking,ticketId);
+  let email={sent:existingTicket?.email_status==='sent'};
+  if(!email.sent){
+   email=await sendTicketEmail(env,booking,ticketId);
+   await database.prepare('UPDATE issued_tickets SET email_status=?,email_sent_at=? WHERE id=?')
+    .bind(email.sent?'sent':'failed',email.sent?new Date().toISOString():null,ticketId).run();
+  }
   return json({ok:true,status:'paid',ticketId,email});
  }catch(error){return json({error:'Webhook processing failed.',detail:String(error?.message||error).slice(0,180)},500)}
 }
