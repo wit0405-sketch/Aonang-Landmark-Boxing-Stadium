@@ -77,3 +77,30 @@ footer{font-size:10px}
  .search-wrap input,.search-wrap select{font-size:13px}
  .small-btn{font-size:12px}
 }
+
+
+/* Desktop-first dashboard layout for office computer screens. */
+@media(min-width:1024px){
+ .sidebar{width:250px;padding:26px 18px}
+ .main{margin-left:250px;max-width:none;width:calc(100% - 250px);padding:0 clamp(28px,3vw,58px);min-height:100vh}
+ .topbar{min-height:112px;margin-bottom:32px}
+ .view{width:100%;max-width:none}
+ .panel,.image-panel{width:100%}
+ .metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+ .table-wrap{width:100%;overflow-x:auto}
+ table{width:100%;min-width:760px}
+ #bookingTable table{table-layout:auto}
+ #bookingTable th,#bookingTable td{padding:15px 14px}
+ #bookingTable td{font-size:15px;line-height:1.7}
+ #bookingTable th{font-size:13px}
+ .internal-note-history{max-width:360px;line-height:1.65}
+ .internal-note-entry{padding:7px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+ .internal-note-entry:last-child{border-bottom:0}
+ .search-wrap input,.search-wrap select{min-height:42px}
+ .small-btn,.primary,.text-button{min-height:36px}
+}
+@media(min-width:1500px){
+ .main{padding-left:54px;padding-right:54px}
+ .panel{padding:25px 28px}
+ #bookingTable th,#bookingTable td{padding:17px 16px}
+}
