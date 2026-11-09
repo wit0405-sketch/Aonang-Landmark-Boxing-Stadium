@@ -20,20 +20,9 @@ function validBooking(b){
 async function allBookings(env){
  const database=db(env); if(!database)throw new Error('D1 binding SEAT_LOCKS_DB is missing.');
  const rows=await database.prepare('SELECT payload FROM admin_bookings ORDER BY created_at DESC LIMIT 1000').all();
- if(rows.results?.length)return rows.results.map(r=>{try{return JSON.parse(r.payload)}catch{return null}}).filter(Boolean);
- // One-time, non-destructive import from the existing KV data.
- if(env.fights_kv){
-  const raw=await env.fights_kv.get('website_bookings');
-  if(raw){let old=[];try{old=JSON.parse(raw)}catch{}
-   if(Array.isArray(old))for(const b of old.slice(-1000)){if(validBooking(b)&&typeof b.id==='string'){
-    await database.prepare('INSERT OR IGNORE INTO admin_bookings(id,status,created_at,payload) VALUES(?,?,?,?)')
-     .bind(b.id,b.status||'new',b.created||new Date().toISOString(),JSON.stringify(b)).run();
-   }}
-   const imported=await database.prepare('SELECT payload FROM admin_bookings ORDER BY created_at DESC LIMIT 1000').all();
-   return (imported.results||[]).map(r=>{try{return JSON.parse(r.payload)}catch{return null}}).filter(Boolean);
-  }
- }
- return [];
+ // D1 is the sole source of truth. Never repopulate an intentionally empty D1
+ // database from legacy KV during a dashboard read.
+ return (rows.results||[]).map(r=>{try{return JSON.parse(r.payload)}catch{return null}}).filter(Boolean);
 }
 export async function onRequestGet({request,env}){
  if(!authorized(request,env))return json({error:'Admin authorization required.'},401);
