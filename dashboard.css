@@ -28,3 +28,52 @@
 #overviewFights td{height:auto;vertical-align:middle}
 
 .live-link-panel label{display:block;margin:0 0 7px;color:#bac1c1;font-size:11px}.live-link-controls{display:flex;gap:10px}.live-link-controls input{flex:1;min-width:0;background:#090c0d;color:#eee;border:1px solid #343c3e;padding:11px 12px;border-radius:3px;font:300 12px 'Kanit'}.live-link-controls input:focus{outline:1px solid var(--gold);border-color:var(--gold)}.live-link-status{display:block;min-height:18px;margin-top:8px;color:#ff888d;font-size:11px}.live-link-status.saved{color:#6cbf98}@media(max-width:580px){.live-link-controls{flex-direction:column}.live-link-controls .primary{align-self:flex-start}}
+
+
+/* Accessibility: increase dashboard typography for comfortable reading. */
+body{font-size:15px}
+.side-link b{font-size:15px}
+.side-link span{font-size:18px}
+.side-label,.crumb{font-size:12px}
+.topbar h1{font-size:29px}
+.welcome h2{font-size:29px}
+.welcome p:last-child{font-size:15px}
+.eyebrow{font-size:12px}
+.metric span{font-size:14px}
+.metric strong{font-size:34px}
+.metric small{font-size:12px}
+.panel-head h3{font-size:21px}
+.text-button{font-size:14px}
+th{font-size:12px}
+td{font-size:14px;line-height:1.65}
+td small{font-size:12px}
+.pill{font-size:12px;padding:5px 10px}
+.small-btn{font-size:12px;padding:7px 10px}
+.search-wrap input,.search-wrap select{font-size:14px}
+.lang,.logout{font-size:13px}
+.primary{font-size:14px}
+.live-link-panel label,.live-link-controls input{font-size:14px}
+.live-link-status{font-size:13px}
+.notice{font-size:13px}
+.empty b{font-size:15px}
+.empty small{font-size:13px}
+.image-intro h2{font-size:29px}
+.image-intro>p:last-child{font-size:14px}
+.image-card-title{font-size:15px}
+.image-card small,.photo-state{font-size:12px}
+.fight-dialog label{font-size:13px}
+.fight-dialog input,.fight-dialog select,.fight-dialog textarea{font-size:14px}
+.corner-label{font-size:12px}
+#fightTable td.event-name small{font-size:12px}
+footer{font-size:10px}
+@media(max-width:580px){
+ .topbar h1{font-size:24px}
+ .welcome h2{font-size:24px}
+ .metric span{font-size:12px}
+ .metric small{font-size:11px}
+ .panel-head h3{font-size:19px}
+ th{font-size:11px}
+ td{font-size:13px}
+ .search-wrap input,.search-wrap select{font-size:13px}
+ .small-btn{font-size:12px}
+}
