@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Payment | Aonang Landmark Boxing Stadium</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css">
+<style>
+.payment-wrap{max-width:760px;margin:70px auto;padding:24px}.payment-card{background:#101414;border:1px solid #303737;padding:32px;text-align:center}.payment-card h1{font-family:Oswald,sans-serif;color:#f2b43f}.payment-qr{display:block;width:min(300px,100%);height:auto;min-height:240px;object-fit:contain;background:#fff;padding:14px;margin:24px auto;border-radius:8px}.payment-meta{display:flex;justify-content:space-between;gap:16px;border-top:1px solid #333;padding:14px 0;color:#ddd}.payment-note{color:#f2b43f}.payment-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:24px}.payment-actions button,.payment-actions a{padding:12px 20px}.payment-status{color:#6de0ad;margin:18px 0}.payment-error{color:#ff7777}
+</style></head><body id="top">
+<header class="site-header"><a class="brand" href="index.html"><img class="brand-logo" src="logo.jpg" alt="Aonang Landmark Boxing Stadium"></a><nav class="main-nav"><a class="nav-link" href="index.html">HOME</a><a class="nav-link" href="tickets.html">TICKETS</a></nav></header>
+<main class="payment-wrap"><section class="payment-card">
+<p class="eyebrow">SECURE CHECKOUT · PROMPTPAY</p><h1>COMPLETE YOUR PAYMENT</h1><p id="paymentIntro">Scan the QR code with your banking app to pay.</p>
+<img id="paymentQr" class="payment-qr" alt="PromptPay payment QR code" hidden>
+<div class="payment-meta"><span>Amount</span><strong id="paymentAmount">Loading…</strong></div>
+<div class="payment-meta"><span>Payment status</span><strong id="paymentState">Loading…</strong></div>
+<p id="paymentStatus" class="payment-status" role="status" aria-live="polite">Checking payment…</p>
+<p class="payment-note">Please keep this page open until payment is confirmed. Your ticket is issued only after the payment provider confirms the transaction.</p>
+<div class="payment-actions"><button id="checkPayment" class="btn btn-red" type="button">CHECK PAYMENT</button><a class="btn" href="index.html">BACK TO WEBSITE</a></div>
+</section></main>
+<script src="payment.js"></script></body></html>
