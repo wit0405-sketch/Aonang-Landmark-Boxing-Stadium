@@ -1,0 +1,33 @@
+name: Internal Booking Notes Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "functions/api/booking-notes.js"
+      - "migrations/0004_booking_admin_notes.sql"
+      - "tests/booking-notes.test.js"
+      - ".github/workflows/booking-notes-tests.yml"
+  push:
+    branches: [feature/internal-booking-notes]
+    paths:
+      - "functions/api/booking-notes.js"
+      - "migrations/0004_booking_admin_notes.sql"
+      - "tests/booking-notes.test.js"
+      - ".github/workflows/booking-notes-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run internal notes API tests
+        run: node --test tests/booking-notes.test.js
