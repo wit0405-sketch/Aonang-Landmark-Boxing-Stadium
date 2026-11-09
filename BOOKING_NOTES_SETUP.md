@@ -1,76 +1,237 @@
-# Internal Booking Notes API
+import test from "node:test";
+import assert from "node:assert/strict";
+import { onRequestGet, onRequestPost } from "../functions/api/booking-notes.js";
 
-This feature is for internal administrative recordkeeping only. A note is not proof of payment, a booking approval, an admission ticket, or permission to enter an event.
-
-## Prerequisites
-
-- Cloudflare Pages Functions deployment.
-- A **separate D1 Preview database** for testing. Do not point the Preview environment at the production database.
-- Preview D1 binding named `SEAT_LOCKS_DB` pointing to that Preview database.
-- A Preview-only `FIGHTS_ADMIN_TOKEN` secret. Do not reuse or expose the production token in Preview.
-- The Preview database must contain the existing `admin_bookings` table schema and a synthetic test booking row. Do not copy real customer data into test fixtures.
-
-## Preview-first setup
-
-1. Create or select a dedicated D1 database for Preview testing. Confirm its database name and ID before changing any binding.
-2. In Cloudflare Pages, configure the **Preview** environment's `SEAT_LOCKS_DB` binding to that Preview database. Leave the Production binding unchanged.
-3. Configure a Preview-only `FIGHTS_ADMIN_TOKEN` secret. Never paste the token into source code, commits, screenshots, or chat.
-   - Confirm the variable name is exactly `FIGHTS_ADMIN_TOKEN` (including the final `N`) and its type is **Secret** under the **Preview** environment.
-   - After saving or changing this secret, create a **new Preview deployment** from `feature/internal-booking-notes`. Test the URL shown on that newest deployment; an older deployment may still use the previous environment configuration.
-   - Do not add quotation marks or leading/trailing spaces around the token value.
-4. Prepare the Preview database with the required existing schema, including `admin_bookings`, using a reviewed schema-only setup and synthetic test data.
-5. Back up the Preview database, then apply `migrations/0004_booking_admin_notes.sql` to the **Preview database only**.
-6. Verify that `booking_admin_notes` exists in Preview and that existing tables and records remain intact.
-7. Deploy this branch to a Pages Preview environment. Do not merge or deploy to Production as part of this test.
-8. Test an unauthorized request (expect HTTP 401).
-9. Test a valid admin read for the synthetic Booking ID (expect HTTP 200).
-10. Add a harmless test note to the synthetic booking (expect HTTP 201), then verify it appears in the read response.
-11. Confirm existing booking and seat-lock flows are unchanged, without testing or issuing admission credentials.
-12. Remove test notes and retire the Preview database when testing is complete, according to your retention policy.
-
-## Production safeguards
-
-- Do **not** apply migration 0004 to Production as part of Preview testing.
-- Do **not** change the Production `SEAT_LOCKS_DB` binding or Production secret.
-- Any later Production rollout requires a separate review, a verified Production backup, an explicit migration plan, and approval from the database owner.
-- Do not merge this pull request or run a Production migration until that review is complete.
-
-## API
-
-Both routes require:
-
-```http
-Authorization: Bearer <FIGHTS_ADMIN_TOKEN>
-```
-
-### Read notes
-
-```http
-GET /api/booking-notes?bookingId=<existing-booking-id>
-```
-
-Returns up to 100 notes, newest first.
-
-### Add a note
-
-```http
-POST /api/booking-notes
-Content-Type: application/json
-```
-
-Body:
-
-```json
-{
-  "bookingId": "synthetic-test-booking-id",
-  "note": "Internal note for administrative follow-up"
+const TOKEN = "test-admin-token";
+function makeDb({ bookingExists = true } = {}) {
+  const notes = [];
+  const db = {
+    notes,
+    prepare(sql) {
+      return {
+        values: [],
+        bind(...values) { this.values = values; return this; },
+        async first() {
+          if (sql.includes("FROM admin_bookings")) {
+            return bookingExists ? { id: this.values[0] } : null;
+          }
+          return null;
+        },
+        async all() {
+          return { results: notes.filter(n => n.booking_id === this.values[0]).reverse() };
+        },
+        async run() {
+          if (sql.includes("INSERT INTO booking_admin_notes")) {
+            const [id, booking_id, actor_label, note, created_at] = this.values;
+            notes.push({ id, booking_id, actor_label, note, created_at });
+          }
+          return { success: true };
+        }
+      };
+    }
+  };
+  return db;
 }
-```
+function request(path, { method = "GET", body, token = TOKEN } = {}) {
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (body !== undefined) headers.set("Content-Type", "application/json");
+  return new Request(`https://example.test${path}`, {
+    method, headers, body: body === undefined ? undefined : JSON.stringify(body)
+  });
+}
+const env = db => ({ SEAT_LOCKS_DB: db, FIGHTS_ADMIN_TOKEN: TOKEN });
 
-The API verifies that the Booking ID exists in `admin_bookings`. Notes are limited to 2,000 characters. The actor label is assigned by the server as `admin`; it is not an individually verified staff identity.
+test("rejects requests without admin authorization", async () => {
+  const response = await onRequestGet({
+    request: request("/api/booking-notes?bookingId=b-1", { token: null }),
+    env: env(makeDb())
+  });
+  assert.equal(response.status, 401);
+});
 
-## Data handling
+test("rejects empty and oversized notes", async () => {
+  const db = makeDb();
+  for (const note of ["", "x".repeat(2001)]) {
+    const response = await onRequestPost({
+      request: request("/api/booking-notes", {
+        method: "POST", body: { bookingId: "b-1", note }
+      }),
+      env: env(db)
+    });
+    assert.equal(response.status, 400);
+  }
+});
 
-- Do not put payment credentials, bank details, identity documents, or other sensitive information in notes.
-- Use synthetic data for Preview tests.
-- A note is an internal comment only. It does not confirm payment, approve a booking, issue admission, or grant entry.
+test("rejects missing, whitespace-only, and oversized Booking IDs on write", async () => {
+  const db = makeDb();
+  const invalidBodies = [
+    { bookingId: "", note: "Internal note" },
+    { bookingId: "   ", note: "Internal note" },
+    { bookingId: "x".repeat(101), note: "Internal note" },
+    { bookingId: "booking-1", note: "   " }
+  ];
+
+  for (const body of invalidBodies) {
+    const response = await onRequestPost({
+      request: request("/api/booking-notes", { method: "POST", body }),
+      env: env(db)
+    });
+    assert.equal(response.status, 400);
+  }
+  assert.equal(db.notes.length, 0);
+});
+
+test("does not add a note for an unknown Booking ID", async () => {
+  const db = makeDb({ bookingExists: false });
+  const response = await onRequestPost({
+    request: request("/api/booking-notes", {
+      method: "POST", body: { bookingId: "missing", note: "Internal follow-up" }
+    }),
+    env: env(db)
+  });
+  assert.equal(response.status, 404);
+  assert.equal(db.notes.length, 0);
+});
+
+test("stores and returns notes linked to an existing Booking ID", async () => {
+  const db = makeDb();
+  const post = await onRequestPost({
+    request: request("/api/booking-notes", {
+      method: "POST",
+      body: { bookingId: "booking-123", note: "Please review the record", actorLabel: "forged-name" }
+    }),
+    env: env(db)
+  });
+  assert.equal(post.status, 201);
+  const created = await post.json();
+  assert.equal(created.note.booking_id, "booking-123");
+  assert.equal(created.note.actor_label, "admin");
+
+  const get = await onRequestGet({
+    request: request("/api/booking-notes?bookingId=booking-123"),
+    env: env(db)
+  });
+  assert.equal(get.status, 200);
+  const listed = await get.json();
+  assert.equal(listed.notes.length, 1);
+  assert.equal(listed.notes[0].note, "Please review the record");
+});
+
+test("rejects malformed JSON without writing a note", async () => {
+  const db = makeDb();
+  const malformed = new Request("https://example.test/api/booking-notes", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+    body: "{not-json"
+  });
+  const response = await onRequestPost({ request: malformed, env: env(db) });
+  assert.equal(response.status, 400);
+  assert.equal(db.notes.length, 0);
+});
+
+test("rejects missing and oversized booking IDs on read", async () => {
+  const db = makeDb();
+  for (const path of [
+    "/api/booking-notes",
+    `/api/booking-notes?bookingId=${"x".repeat(101)}`
+  ]) {
+    const response = await onRequestGet({ request: request(path), env: env(db) });
+    assert.equal(response.status, 400);
+  }
+});
+
+test("returns service unavailable when the D1 binding is missing", async () => {
+  const get = await onRequestGet({
+    request: request("/api/booking-notes?bookingId=b-1"),
+    env: { FIGHTS_ADMIN_TOKEN: TOKEN }
+  });
+  assert.equal(get.status, 503);
+
+  const post = await onRequestPost({
+    request: request("/api/booking-notes", {
+      method: "POST", body: { bookingId: "b-1", note: "Internal note" }
+    }),
+    env: { FIGHTS_ADMIN_TOKEN: TOKEN }
+  });
+  assert.equal(post.status, 503);
+});
+
+test("keeps notes isolated between different Booking IDs", async () => {
+  const db = makeDb();
+  for (const [bookingId, note] of [
+    ["booking-a", "Note for A"],
+    ["booking-b", "Note for B"]
+  ]) {
+    const response = await onRequestPost({
+      request: request("/api/booking-notes", {
+        method: "POST", body: { bookingId, note }
+      }),
+      env: env(db)
+    });
+    assert.equal(response.status, 201);
+  }
+
+  const response = await onRequestGet({
+    request: request("/api/booking-notes?bookingId=booking-a"),
+    env: env(db)
+  });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.notes.length, 1);
+  assert.equal(result.notes[0].booking_id, "booking-a");
+  assert.equal(result.notes[0].note, "Note for A");
+});
+
+test("does not expose database errors when note reads fail", async () => {
+  const db = {
+    prepare() {
+      return {
+        bind() { return this; },
+        async all() { throw new Error("private database detail"); }
+      };
+    }
+  };
+  const response = await onRequestGet({
+    request: request("/api/booking-notes?bookingId=b-1"),
+    env: env(db)
+  });
+  assert.equal(response.status, 503);
+  const body = await response.json();
+  assert.doesNotMatch(JSON.stringify(body), /private database detail/);
+});
+
+test("does not expose database errors when note writes fail", async () => {
+  const db = {
+    prepare(sql) {
+      return {
+        bind() { return this; },
+        async first() {
+          if (sql.includes("FROM admin_bookings")) return { id: "b-1" };
+          return null;
+        },
+        async run() { throw new Error("private database detail"); }
+      };
+    }
+  };
+  const response = await onRequestPost({
+    request: request("/api/booking-notes", {
+      method: "POST", body: { bookingId: "b-1", note: "Internal follow-up" }
+    }),
+    env: env(db)
+  });
+  assert.equal(response.status, 503);
+  const body = await response.json();
+  assert.doesNotMatch(JSON.stringify(body), /private database detail/);
+});
+
+
+## Customer-reported evidence metadata (Preview-only, unverified)
+
+The optional `booking_payment_evidence` table stores only administrative metadata supplied by a customer or entered by staff: source type, customer-reported amount, an external reference string, reported timestamp, and a short note. Every row is permanently constrained to `received_unverified`. This feature does not connect to a bank, query a payment provider, inspect transfers, verify receipts, approve payments, or change booking status.
+
+For a Preview test, back up the Preview D1 database, review and apply `migrations/0005_booking_payment_evidence.sql` to Preview only, and deploy the branch. Do not apply this migration to Production. Use synthetic booking records and synthetic references only. Do not store account numbers, card details, passwords, PINs, OTPs, or full bank statements.
+
+- `GET /api/booking-payment-evidence?bookingId=<id>` lists up to 100 internal records.
+- `POST /api/booking-payment-evidence` accepts `bookingId`, `sourceType` (`staff_entry` or `provider_reference`), optional `reportedAmount`, optional `externalReference`, optional `reportedAt`, and optional `evidenceNote`.
+- All returned records are labelled `received_unverified`; there is no confirmation or approval endpoint.
